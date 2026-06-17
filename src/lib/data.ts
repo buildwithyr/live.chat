@@ -1,5 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Message, Profile, Room } from "./types";
+import type { Message, Poll, Profile, Role, Room } from "./types";
+
+const PROFILE_COLS =
+  "id, username, full_name, avatar_url, bio, status, banner_url, birthday, show_birthday, updated_at";
+
+const ROOM_SELECT = `id, name, is_group, description, category, avatar_url, banner_url, invite_code, invite_active, created_by, created_at, room_members(user_id, role, muted, last_read_at, profiles(${PROFILE_COLS}))`;
 
 /** Aktuell angemeldetes Profil laden (oder null). */
 export async function getCurrentProfile(): Promise<Profile | null> {
@@ -11,11 +16,23 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 
   const { data } = await supabase
     .from("profiles")
-    .select("*")
+    .select(PROFILE_COLS)
     .eq("id", user.id)
     .single();
 
-  return data;
+  return data as Profile | null;
+}
+
+/** Profil per Benutzername laden (fuer die oeffentliche Profilseite). */
+export async function getProfileByUsername(username: string): Promise<Profile | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select(PROFILE_COLS)
+    .eq("username", username)
+    .maybeSingle();
+
+  return data as Profile | null;
 }
 
 /** Alle Raeume des aktuellen Users (RLS filtert automatisch auf Mitgliedschaft). */
@@ -23,9 +40,7 @@ export async function getRooms(): Promise<Room[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("rooms")
-    .select(
-      "id, name, is_group, created_by, created_at, room_members(user_id, last_read_at, profiles(id, username, full_name, avatar_url, updated_at))"
-    )
+    .select(ROOM_SELECT)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -40,13 +55,16 @@ export async function getRoom(roomId: string): Promise<Room | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("rooms")
-    .select(
-      "id, name, is_group, created_by, created_at, room_members(user_id, last_read_at, profiles(id, username, full_name, avatar_url, updated_at))"
-    )
+    .select(ROOM_SELECT)
     .eq("id", roomId)
     .maybeSingle();
 
   return (data as unknown as Room) ?? null;
+}
+
+/** Rolle des aktuellen Users in einem Raum. */
+export function myRole(room: Room, userId: string): Role | null {
+  return room.room_members.find((m) => m.user_id === userId)?.role ?? null;
 }
 
 /** Letzte Nachrichten eines Raums (chronologisch aufsteigend). */
@@ -60,4 +78,18 @@ export async function getMessages(roomId: string): Promise<Message[]> {
     .limit(200);
 
   return (data ?? []) as Message[];
+}
+
+/** Umfragen eines Raums inkl. Optionen und Stimmen. */
+export async function getPolls(roomId: string): Promise<Poll[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("polls")
+    .select(
+      "id, room_id, question, multiple, closed, created_by, created_at, poll_options(id, poll_id, text, position), poll_votes(poll_id, option_id, user_id)"
+    )
+    .eq("room_id", roomId)
+    .order("created_at", { ascending: false });
+
+  return (data ?? []) as unknown as Poll[];
 }

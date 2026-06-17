@@ -6,8 +6,9 @@ import {
   getMessages,
   getRoom,
   getRooms,
+  myRole,
 } from "@/lib/data";
-import { toRoomListItem } from "@/lib/utils";
+import { canModerate, toRoomListItem } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
 
 export default async function RoomPage({
@@ -37,6 +38,7 @@ export default async function RoomPage({
     userId: m.user_id,
     lastReadAt: m.last_read_at,
   }));
+  const role = myRole(room, profile.id);
 
   return (
     <div className="flex h-[100dvh] overflow-hidden">
@@ -56,6 +58,8 @@ export default async function RoomPage({
         subtitle={item.subtitle}
         initialMessages={messages}
         initialReads={initialReads}
+        canModerate={canModerate(role)}
+        avatarUrl={item.avatarUrl}
       />
     </div>
   );

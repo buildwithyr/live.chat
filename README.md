@@ -16,6 +16,12 @@ Gebaut mit **Next.js 16**, **TypeScript**, **Supabase** (Auth + Realtime + Postg
 - ✓✓ **Lesebestätigungen** (1:1 „Gelesen", Gruppen „Gelesen · N/M")
 - 🖼️ **Bild-Uploads** via Supabase Storage
 - 🔔 **Push-Benachrichtigungen** (Web Push via Edge Function, auch bei geschlossener App)
+- 👑 **Gruppen-Rollen** (Owner / Admin / Moderator / Mitglied) mit feinen Rechten
+- 🖼️ **Gruppen-Bild & -Banner**, Beschreibung, Kategorie, Erstellungsdatum
+- 🔗 **Einladungslinks** (erzeugen / zurücksetzen / deaktivieren) inkl. **QR-Code** (anzeigen/herunterladen)
+- 📊 **Umfragen** (Einfach-/Mehrfachauswahl, Live-Ergebnisse, Prozente, schließen)
+- 🧑 **Erweiterte Profile**: Banner, Avatar-Upload, Bio (250 Z.), Status, Geburtstag (mit Datenschutz)
+- 🗑️ **Nachrichten löschen** (eigene oder per Moderation), 🔇 **Stummschalten**, ⚐ **Melden**
 - 🕒 Chronologischer Verlauf mit Zeitstempeln & Tages-Trennern
 - ↔️ Eigene Nachrichten rechts, fremde links
 - 🌓 Dark Mode (System + manueller Umschalter, ohne Flackern)
@@ -136,6 +142,47 @@ beobachte, wie Nachrichten **live** erscheinen.
    (z. B. `https://deine-app.vercel.app/**`), damit E-Mail-Logins korrekt zurückleiten.
 
 ---
+
+## 🧩 Gruppen, Rollen, Umfragen & Profile (v3)
+
+### Welche SQL-Datei ausführen?
+| Situation | Reihenfolge im Supabase SQL-Editor |
+|---|---|
+| **Frische Datenbank** | 1. `supabase/schema.sql` → 2. `supabase/upgrade_v3.sql` |
+| **Bereits v1/v2 im Einsatz** | nur `supabase/upgrade_v3.sql` |
+
+`upgrade_v3.sql` ist **idempotent** und additiv (ändert keine funktionierenden Teile).
+Es ergänzt:
+- **Spalten** an `profiles` (bio, status, banner_url, birthday, show_birthday) und
+  `rooms` (description, category, avatar_url, banner_url, invite_code, invite_active)
+  sowie `room_members` (role, muted).
+- **Neue Tabellen:** `polls`, `poll_options`, `poll_votes`, `reports`.
+- **RPCs** (SECURITY DEFINER, mit Rechteprüfung): `create_group`, `add_member`,
+  `remove_member`, `set_member_role`, `set_member_muted`, `transfer_owner`,
+  `delete_group`, `generate_invite_code`, `set_invite_active`, `join_via_invite`,
+  `report_member`, `create_poll`, `cast_vote`, `close_poll`.
+- **RLS:** Gruppen nur durch Admin/Owner änderbar, nur Owner darf löschen,
+  Stummgeschaltete dürfen nicht senden, Nachrichten löschen durch Absender/Moderation,
+  Umfragen/Stimmen nur für Raum-Mitglieder sichtbar.
+- **Realtime** für `polls`, `poll_votes`, `rooms`.
+
+### Neue Storage-Buckets
+`upgrade_v3.sql` legt **zwei neue öffentliche Buckets** automatisch an:
+- **`group-images`** – Gruppen-Avatar & -Banner (Upload nur Admin/Owner, Pfad `<room_id>/…`)
+- **`profile-images`** – Profil-Avatar & -Banner (Upload nur in eigenen Ordner `<user_id>/…`)
+
+Du musst sie **nicht** manuell erstellen – das SQL erledigt das.
+
+### Rollen-Rechte (Kurzform)
+- **Owner:** Gruppe löschen, Owner übertragen, Admins verwalten + alle Admin-Rechte
+- **Admin:** Mitglieder hinzufügen/entfernen, Moderatoren ernennen, Bild/Banner/Beschreibung ändern, Einladungslink verwalten
+- **Moderator:** Nachrichten löschen, Mitglieder stummschalten, melden
+- **Mitglied:** normale Chatfunktionen + Umfragen erstellen/abstimmen
+
+### Neue Seiten
+- `/chat/[roomId]/info` – Gruppen-Infoseite (Bild, Banner, Beschreibung, Mitglieder, Rollen, Einladung, QR, Umfragen)
+- `/u/[username]` – öffentliches Profil
+- `/invite/[code]` – Einladung beitreten
 
 ## 🔔 Push-Benachrichtigungen (Web Push)
 
