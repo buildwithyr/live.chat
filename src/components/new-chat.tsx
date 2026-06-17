@@ -68,27 +68,13 @@ export function NewChat({ currentUserId }: { currentUserId: string }) {
         if (error) throw error;
         navigate(data as string);
       } else {
-        // Gruppenchat anlegen
-        const { data: room, error: rErr } = await supabase
-          .from("rooms")
-          .insert({
-            is_group: true,
-            name: groupName.trim() || "Neue Gruppe",
-            created_by: currentUserId,
-          })
-          .select("id")
-          .single();
-        if (rErr) throw rErr;
-
-        const members = [currentUserId, ...selected.map((s) => s.id)].map(
-          (user_id) => ({ room_id: room.id, user_id })
-        );
-        const { error: mErr } = await supabase
-          .from("room_members")
-          .insert(members);
-        if (mErr) throw mErr;
-
-        navigate(room.id);
+        // Gruppenchat anlegen (RPC setzt den Ersteller als Owner)
+        const { data, error } = await supabase.rpc("create_group", {
+          _name: groupName.trim(),
+          _members: selected.map((s) => s.id),
+        });
+        if (error) throw error;
+        navigate(data as string);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Konnte Chat nicht starten.");

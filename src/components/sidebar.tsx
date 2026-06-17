@@ -71,7 +71,12 @@ export function Sidebar({
                   : "hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
               )}
             >
-              <Avatar name={room.title} isGroup={room.isGroup} size={44} />
+              <Avatar
+                name={room.title}
+                url={room.avatarUrl}
+                isGroup={room.isGroup}
+                size={44}
+              />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">
                   {room.title}

@@ -18,6 +18,8 @@ export function ChatRoom({
   subtitle,
   initialMessages,
   initialReads,
+  canModerate = false,
+  avatarUrl = null,
 }: {
   roomId: string;
   currentUserId: string;
@@ -27,6 +29,8 @@ export function ChatRoom({
   subtitle: string;
   initialMessages: Message[];
   initialReads: MemberRead[];
+  canModerate?: boolean;
+  avatarUrl?: string | null;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -75,6 +79,14 @@ export function ChatRoom({
           setMessages((prev) =>
             prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]
           );
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "messages" },
+        (payload) => {
+          const old = payload.old as { id: string };
+          setMessages((prev) => prev.filter((m) => m.id !== old.id));
         }
       )
       .on(
@@ -149,6 +161,11 @@ export function ChatRoom({
       .catch(() => {
         /* Push ist optional – Fehler hier nicht stoerend. */
       });
+  }
+
+  async function deleteMessage(id: string) {
+    setMessages((prev) => prev.filter((m) => m.id !== id)); // optimistisch
+    await supabase.from("messages").delete().eq("id", id);
   }
 
   async function send() {
@@ -249,17 +266,38 @@ export function ChatRoom({
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </Link>
-        <Avatar name={title} isGroup={isGroup} size={38} />
-        <div className="min-w-0">
-          <h1 className="truncate text-sm font-semibold">{title}</h1>
-          <p className="truncate text-xs text-neutral-400">
-            {typingNames.length > 0
-              ? typingNames.length === 1
-                ? `${typingNames[0]} schreibt …`
-                : "Mehrere schreiben …"
-              : subtitle}
-          </p>
-        </div>
+        {isGroup ? (
+          <Link
+            href={`/chat/${roomId}/info`}
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 transition hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          >
+            <Avatar name={title} url={avatarUrl} isGroup size={38} />
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-semibold">{title}</h1>
+              <p className="truncate text-xs text-neutral-400">
+                {typingNames.length > 0
+                  ? typingNames.length === 1
+                    ? `${typingNames[0]} schreibt …`
+                    : "Mehrere schreiben …"
+                  : subtitle}
+              </p>
+            </div>
+          </Link>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <Avatar name={title} url={avatarUrl} size={38} />
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-semibold">{title}</h1>
+              <p className="truncate text-xs text-neutral-400">
+                {typingNames.length > 0
+                  ? typingNames.length === 1
+                    ? `${typingNames[0]} schreibt …`
+                    : "Mehrere schreiben …"
+                  : subtitle}
+              </p>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Nachrichtenverlauf */}
@@ -290,7 +328,20 @@ export function ChatRoom({
                     </span>
                   </div>
                 )}
-                <div className={cn("flex w-full", mine ? "justify-end" : "justify-start")}>
+                <div className={cn("group flex w-full items-center gap-1.5", mine ? "justify-end" : "justify-start")}>
+                  {(mine || canModerate) && (
+                    <button
+                      onClick={() => {
+                        if (confirm("Nachricht löschen?")) deleteMessage(msg.id);
+                      }}
+                      title="Nachricht löschen"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-neutral-400 opacity-0 transition hover:bg-neutral-200 hover:text-red-500 group-hover:opacity-100 dark:hover:bg-neutral-800"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                    </button>
+                  )}
                   <div className={cn("max-w-[80%] sm:max-w-[70%]", mine ? "items-end" : "items-start")}>
                     {showSender && (
                       <span className="mb-0.5 ml-1 block text-xs font-medium text-neutral-400">

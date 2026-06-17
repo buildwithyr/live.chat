@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,8 @@ type Mode = "login" | "signup";
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") || "/chat";
   const supabase = createClient();
 
   const [mode, setMode] = useState<Mode>("login");
@@ -38,7 +40,7 @@ export function LoginForm() {
         if (error) throw error;
 
         if (data.session) {
-          router.push("/chat");
+          router.push(next);
           router.refresh();
         } else {
           setInfo(
@@ -51,7 +53,7 @@ export function LoginForm() {
           password,
         });
         if (error) throw error;
-        router.push("/chat");
+        router.push(next);
         router.refresh();
       }
     } catch (err) {
