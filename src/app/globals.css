@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply bg-neutral-50 text-neutral-900 antialiased dark:bg-neutral-950 dark:text-neutral-100;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Dezenter Scrollbar-Stil */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(163 163 163 / 0.4) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: rgb(163 163 163 / 0.4);
+  border-radius: 9999px;
+}
+
+/* iOS: Safe-Area-Unterstuetzung */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
