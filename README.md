@@ -15,6 +15,7 @@ Gebaut mit **Next.js 16**, **TypeScript**, **Supabase** (Auth + Realtime + Postg
 - ✍️ **Tippanzeige** („… schreibt") in Echtzeit
 - ✓✓ **Lesebestätigungen** (1:1 „Gelesen", Gruppen „Gelesen · N/M")
 - 🖼️ **Bild-Uploads** via Supabase Storage
+- 🔔 **Push-Benachrichtigungen** (Web Push via Edge Function, auch bei geschlossener App)
 - 🕒 Chronologischer Verlauf mit Zeitstempeln & Tages-Trennern
 - ↔️ Eigene Nachrichten rechts, fremde links
 - 🌓 Dark Mode (System + manueller Umschalter, ohne Flackern)
@@ -135,6 +136,24 @@ beobachte, wie Nachrichten **live** erscheinen.
    (z. B. `https://deine-app.vercel.app/**`), damit E-Mail-Logins korrekt zurückleiten.
 
 ---
+
+## 🔔 Push-Benachrichtigungen (Web Push)
+
+Optionales Feature. Komponenten: Tabelle `push_subscriptions`, Service Worker
+(`public/sw.js`), Client-Schalter (Profil-Seite) und die Edge Function
+`supabase/functions/notify-message`, die beim Senden einer Nachricht aufgerufen wird
+und die anderen Mitglieder benachrichtigt.
+
+**Einrichtung:**
+1. VAPID-Keys erzeugen: `npx web-push generate-vapid-keys --json`
+2. **Vercel + `.env.local`:** `NEXT_PUBLIC_VAPID_PUBLIC_KEY` = Public Key.
+3. **Supabase → Edge Functions → Secrets:** `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
+   `VAPID_SUBJECT` (z. B. `mailto:du@example.com`).
+4. Function deployen: `supabase functions deploy notify-message --no-verify-jwt`
+5. In der App unter **Profil → Benachrichtigungen** aktivieren.
+
+> **iPhone:** Web Push funktioniert nur, wenn die App zuvor über Safari
+> „Teilen → Zum Home-Bildschirm" installiert wurde (iOS 16.4+).
 
 ## 🧪 Lokaler Build-Test
 ```bash

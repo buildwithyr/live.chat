@@ -274,4 +274,37 @@ create policy "chat_images_delete_own" on storage.objects
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
--- Fertig. Tabellen: profiles, rooms, room_members, messages. Bucket: chat-images.
+-- ----------------------------------------------------------------
+-- 7) WEB PUSH: gespeicherte Browser-Subscriptions
+-- ----------------------------------------------------------------
+create table if not exists public.push_subscriptions (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  endpoint   text not null unique,
+  p256dh     text not null,
+  auth       text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists push_subscriptions_user_idx on public.push_subscriptions (user_id);
+
+alter table public.push_subscriptions enable row level security;
+
+drop policy if exists "push_select_own" on public.push_subscriptions;
+create policy "push_select_own" on public.push_subscriptions
+  for select to authenticated using (user_id = auth.uid());
+
+drop policy if exists "push_insert_own" on public.push_subscriptions;
+create policy "push_insert_own" on public.push_subscriptions
+  for insert to authenticated with check (user_id = auth.uid());
+
+drop policy if exists "push_update_own" on public.push_subscriptions;
+create policy "push_update_own" on public.push_subscriptions
+  for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "push_delete_own" on public.push_subscriptions;
+create policy "push_delete_own" on public.push_subscriptions
+  for delete to authenticated using (user_id = auth.uid());
+
+-- Fertig. Tabellen: profiles, rooms, room_members, messages, push_subscriptions.
+-- Bucket: chat-images. Edge Function: notify-message (siehe supabase/functions).

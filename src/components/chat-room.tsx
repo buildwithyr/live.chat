@@ -142,6 +142,15 @@ export function ChatRoom({
     });
   }
 
+  // Push-Benachrichtigung an die anderen Mitglieder ausloesen (fire-and-forget).
+  function notify(content: string | null) {
+    supabase.functions
+      .invoke("notify-message", { body: { room_id: roomId, content } })
+      .catch(() => {
+        /* Push ist optional – Fehler hier nicht stoerend. */
+      });
+  }
+
   async function send() {
     const content = text.trim();
     if (!content || sending) return;
@@ -153,7 +162,11 @@ export function ChatRoom({
       .from("messages")
       .insert({ room_id: roomId, sender_id: currentUserId, content });
 
-    if (error) setText(content); // bei Fehler Eingabe wiederherstellen
+    if (error) {
+      setText(content); // bei Fehler Eingabe wiederherstellen
+    } else {
+      notify(content);
+    }
     setSending(false);
   }
 
@@ -194,6 +207,7 @@ export function ChatRoom({
       });
       if (msgErr) throw msgErr;
       setText("");
+      notify(caption || null);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload fehlgeschlagen.");
     } finally {

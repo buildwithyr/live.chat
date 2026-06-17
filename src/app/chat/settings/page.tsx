@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentProfile } from "@/lib/data";
 import { SettingsForm } from "@/components/settings-form";
+import { PushToggle } from "@/components/push-toggle";
 
 export default async function SettingsPage() {
   const profile = await getCurrentProfile();
@@ -22,6 +23,13 @@ export default async function SettingsPage() {
         <h1 className="text-lg font-semibold">Profil</h1>
       </div>
       <SettingsForm profile={profile} />
+
+      <div className="mt-8">
+        <h2 className="mb-3 text-sm font-semibold text-neutral-500">
+          Benachrichtigungen
+        </h2>
+        <PushToggle userId={profile.id} />
+      </div>
     </main>
   );
 }
