@@ -59,6 +59,10 @@ export function ChatRoom({
   }, [members]);
 
   const myName = displayName(profileById.get(currentUserId));
+  // Im Direktchat: Profil des Gegenübers (fuer Verlinkung auf /u/<username>).
+  const otherProfile = !isGroup
+    ? members.find((m) => m.id !== currentUserId) ?? null
+    : null;
 
   // Raum als gelesen markieren (debounced via Aufruf).
   const markRead = useCallback(async () => {
@@ -283,6 +287,23 @@ export function ChatRoom({
               </p>
             </div>
           </Link>
+        ) : otherProfile ? (
+          <Link
+            href={`/u/${otherProfile.username}`}
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 transition hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          >
+            <Avatar name={title} url={avatarUrl} size={38} />
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-semibold">{title}</h1>
+              <p className="truncate text-xs text-neutral-400">
+                {typingNames.length > 0
+                  ? typingNames.length === 1
+                    ? `${typingNames[0]} schreibt …`
+                    : "Mehrere schreiben …"
+                  : subtitle}
+              </p>
+            </div>
+          </Link>
         ) : (
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <Avatar name={title} url={avatarUrl} size={38} />
@@ -344,9 +365,12 @@ export function ChatRoom({
                   )}
                   <div className={cn("max-w-[80%] sm:max-w-[70%]", mine ? "items-end" : "items-start")}>
                     {showSender && (
-                      <span className="mb-0.5 ml-1 block text-xs font-medium text-neutral-400">
+                      <Link
+                        href={`/u/${sender?.username ?? ""}`}
+                        className="mb-0.5 ml-1 block text-xs font-medium text-neutral-400 hover:underline"
+                      >
                         {displayName(sender)}
-                      </span>
+                      </Link>
                     )}
                     <div
                       className={cn(
