@@ -29,19 +29,25 @@ create table if not exists public.rooms (
 
 -- Mitgliedschaften (welcher User ist in welchem Raum)
 create table if not exists public.room_members (
-  room_id   uuid not null references public.rooms (id) on delete cascade,
-  user_id   uuid not null references public.profiles (id) on delete cascade,
-  joined_at timestamptz not null default now(),
+  room_id      uuid not null references public.rooms (id) on delete cascade,
+  user_id      uuid not null references public.profiles (id) on delete cascade,
+  joined_at    timestamptz not null default now(),
+  last_read_at timestamptz, -- fuer Lesebestaetigungen
   primary key (room_id, user_id)
 );
 
--- Nachrichten
+-- Nachrichten (Text und/oder Bild)
 create table if not exists public.messages (
   id         uuid primary key default gen_random_uuid(),
   room_id    uuid not null references public.rooms (id) on delete cascade,
   sender_id  uuid not null references public.profiles (id) on delete cascade,
-  content    text not null check (char_length(content) between 1 and 4000),
-  created_at timestamptz not null default now()
+  content    text,
+  image_url  text,
+  created_at timestamptz not null default now(),
+  constraint messages_content_or_image check (
+    (content is not null and char_length(content) between 1 and 4000)
+    or image_url is not null
+  )
 );
 
 create index if not exists messages_room_created_idx
@@ -189,6 +195,12 @@ create policy "members_delete_self" on public.room_members
   for delete to authenticated
   using (user_id = auth.uid()); -- Raum verlassen
 
+drop policy if exists "members_update_self" on public.room_members;
+create policy "members_update_self" on public.room_members
+  for update to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid()); -- eigenen last_read_at setzen
+
 -- ---- messages -------------------------------------------------
 drop policy if exists "messages_select_member" on public.messages;
 create policy "messages_select_member" on public.messages
@@ -204,8 +216,62 @@ create policy "messages_insert_member" on public.messages
   );
 
 -- ----------------------------------------------------------------
--- 4) REALTIME aktivieren (fuer Live-Nachrichten)
+-- 4) LESEBESTAETIGUNGEN: Raum als gelesen markieren
 -- ----------------------------------------------------------------
-alter publication supabase_realtime add table public.messages;
+create or replace function public.mark_room_read(_room_id uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.room_members
+  set last_read_at = now()
+  where room_id = _room_id and user_id = auth.uid();
+$$;
 
--- Fertig. Tabellen: profiles, rooms, room_members, messages.
+-- ----------------------------------------------------------------
+-- 5) REALTIME aktivieren (Live-Nachrichten + Lesebestaetigungen)
+-- ----------------------------------------------------------------
+do $$
+begin
+  alter publication supabase_realtime add table public.messages;
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.room_members;
+exception when duplicate_object then null;
+end $$;
+
+-- ----------------------------------------------------------------
+-- 6) STORAGE: Bucket fuer Bild-Uploads
+-- ----------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('chat-images', 'chat-images', true)
+on conflict (id) do nothing;
+
+-- Oeffentlich lesbar (Bilder werden per <img src> angezeigt).
+drop policy if exists "chat_images_read" on storage.objects;
+create policy "chat_images_read" on storage.objects
+  for select to public
+  using (bucket_id = 'chat-images');
+
+-- Hochladen nur angemeldet und nur in den eigenen Ordner (user-id als 1. Pfadteil).
+drop policy if exists "chat_images_insert" on storage.objects;
+create policy "chat_images_insert" on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'chat-images'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "chat_images_delete_own" on storage.objects;
+create policy "chat_images_delete_own" on storage.objects
+  for delete to authenticated
+  using (
+    bucket_id = 'chat-images'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+-- Fertig. Tabellen: profiles, rooms, room_members, messages. Bucket: chat-images.

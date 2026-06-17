@@ -24,7 +24,7 @@ export async function getRooms(): Promise<Room[]> {
   const { data, error } = await supabase
     .from("rooms")
     .select(
-      "id, name, is_group, created_by, created_at, room_members(user_id, profiles(id, username, full_name, avatar_url, updated_at))"
+      "id, name, is_group, created_by, created_at, room_members(user_id, last_read_at, profiles(id, username, full_name, avatar_url, updated_at))"
     )
     .order("created_at", { ascending: false });
 
@@ -41,7 +41,7 @@ export async function getRoom(roomId: string): Promise<Room | null> {
   const { data } = await supabase
     .from("rooms")
     .select(
-      "id, name, is_group, created_by, created_at, room_members(user_id, profiles(id, username, full_name, avatar_url, updated_at))"
+      "id, name, is_group, created_by, created_at, room_members(user_id, last_read_at, profiles(id, username, full_name, avatar_url, updated_at))"
     )
     .eq("id", roomId)
     .maybeSingle();
@@ -54,7 +54,7 @@ export async function getMessages(roomId: string): Promise<Message[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("messages")
-    .select("id, room_id, sender_id, content, created_at")
+    .select("id, room_id, sender_id, content, image_url, created_at")
     .eq("room_id", roomId)
     .order("created_at", { ascending: true })
     .limit(200);

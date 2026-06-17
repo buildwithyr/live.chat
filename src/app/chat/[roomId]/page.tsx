@@ -33,6 +33,10 @@ export default async function RoomPage({
   const members = room.room_members
     .map((m) => m.profiles)
     .filter((p): p is Profile => p !== null);
+  const initialReads = room.room_members.map((m) => ({
+    userId: m.user_id,
+    lastReadAt: m.last_read_at,
+  }));
 
   return (
     <div className="flex h-[100dvh] overflow-hidden">
@@ -51,6 +55,7 @@ export default async function RoomPage({
         title={item.title}
         subtitle={item.subtitle}
         initialMessages={messages}
+        initialReads={initialReads}
       />
     </div>
   );

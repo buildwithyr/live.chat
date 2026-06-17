@@ -10,13 +10,21 @@ export interface Message {
   id: string;
   room_id: string;
   sender_id: string;
-  content: string;
+  content: string | null;
+  image_url: string | null;
   created_at: string;
 }
 
 export interface RoomMember {
   user_id: string;
+  last_read_at: string | null;
   profiles: Profile | null;
+}
+
+/** Lesestand eines Mitglieds (fuer Lesebestaetigungen). */
+export interface MemberRead {
+  userId: string;
+  lastReadAt: string | null;
 }
 
 export interface Room {

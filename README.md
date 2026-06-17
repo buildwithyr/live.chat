@@ -12,6 +12,9 @@ Gebaut mit **Next.js 16**, **TypeScript**, **Supabase** (Auth + Realtime + Postg
 - 👤 Benutzerprofile (Anzeigename, Benutzername, Avatar-URL)
 - 💬 1:1-Chats & Gruppenchats
 - ⚡ Nachrichten live empfangen (Supabase Realtime)
+- ✍️ **Tippanzeige** („… schreibt") in Echtzeit
+- ✓✓ **Lesebestätigungen** (1:1 „Gelesen", Gruppen „Gelesen · N/M")
+- 🖼️ **Bild-Uploads** via Supabase Storage
 - 🕒 Chronologischer Verlauf mit Zeitstempeln & Tages-Trennern
 - ↔️ Eigene Nachrichten rechts, fremde links
 - 🌓 Dark Mode (System + manueller Umschalter, ohne Flackern)
@@ -56,7 +59,11 @@ Alle vier Tabellen werden vom Skript `supabase/schema.sql` erstellt:
 | `profiles` | Benutzerprofil (1:1 mit `auth.users`) | `id`, `username` (unique), `full_name`, `avatar_url` |
 | `rooms` | Chats/Räume (1:1 **oder** Gruppe) | `id`, `name`, `is_group`, `created_by` |
 | `room_members` | Wer ist in welchem Raum | `room_id`, `user_id` (PK kombiniert) |
-| `messages` | Nachrichten | `id`, `room_id`, `sender_id`, `content`, `created_at` |
+| `messages` | Nachrichten (Text und/oder Bild) | `id`, `room_id`, `sender_id`, `content`, `image_url`, `created_at` |
+
+Zusätzlich: Spalte `room_members.last_read_at` (Lesebestätigungen) und der **Storage-Bucket `chat-images`** (Bild-Uploads). Tippanzeigen laufen rein über Realtime-Broadcast – **ohne** DB-Tabelle.
+
+> **Hinweis zu Bildern:** Der Bucket `chat-images` ist öffentlich lesbar (Bilder werden per `<img src>` angezeigt), aber Uploads sind nur angemeldeten Usern und nur im eigenen Ordner (`<user-id>/…`) erlaubt. Dateinamen sind zufällige UUIDs. Für maximale Privatsphäre könntest du den Bucket auf *privat* stellen und mit signierten URLs arbeiten.
 
 **Automatik im Skript:**
 - Trigger `on_auth_user_created` → legt bei jeder Registrierung automatisch ein `profiles`-Zeile an.
@@ -94,7 +101,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=DEIN-ANON-PUBLIC-KEY
 
 ### 2) SQL ausführen
 1. Im Supabase-Dashboard: **SQL Editor → New query**.
-2. Inhalt von [`supabase/schema.sql`](./supabase/schema.sql) komplett einfügen und **Run** klicken.
+2. **Frische Datenbank:** Inhalt von [`supabase/schema.sql`](./supabase/schema.sql) komplett einfügen und **Run** klicken (enthält bereits alle Features inkl. Bilder & Lesebestätigungen).
+3. **Bereits v1 eingespielt?** Dann stattdessen einmalig [`supabase/upgrade.sql`](./supabase/upgrade.sql) ausführen – fügt nur die neuen Sachen idempotent hinzu.
 3. (Empfohlen für eine private App) Unter **Authentication → Sign In / Providers → Email**
    die Option **„Confirm email"** ausschalten, damit man sich ohne Bestätigungs-Mail
    sofort einloggen kann. Lässt du sie an, kommt die Bestätigung per E-Mail und der
