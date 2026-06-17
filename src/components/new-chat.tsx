@@ -59,8 +59,10 @@ export function NewChat({ currentUserId }: { currentUserId: string }) {
     if (selected.length === 0) return;
     setBusy(true);
     setError(null);
+    // Eine Gruppe entsteht ab 2 Personen ODER sobald ein Gruppenname gesetzt ist.
+    const asGroup = selected.length > 1 || groupName.trim() !== "";
     try {
-      if (selected.length === 1) {
+      if (!asGroup) {
         // 1:1-Chat via RPC (findet bestehenden oder erstellt neuen)
         const { data, error } = await supabase.rpc("start_direct_chat", {
           _other: selected[0].id,
@@ -140,11 +142,15 @@ export function NewChat({ currentUserId }: { currentUserId: string }) {
                 </div>
               )}
 
-              {selected.length > 1 && (
+              {selected.length >= 1 && (
                 <input
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
-                  placeholder="Gruppenname (optional)"
+                  placeholder={
+                    selected.length === 1
+                      ? "Gruppenname (eingeben = Gruppe statt Direktnachricht)"
+                      : "Gruppenname (optional)"
+                  }
                   className="mt-3 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-sm outline-none focus:border-neutral-400 focus:bg-white dark:border-neutral-800 dark:bg-neutral-950 dark:focus:bg-neutral-900"
                 />
               )}
@@ -200,7 +206,9 @@ export function NewChat({ currentUserId }: { currentUserId: string }) {
                 disabled={selected.length === 0 || busy}
                 className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition disabled:opacity-40 dark:bg-white dark:text-neutral-900"
               >
-                {selected.length > 1 ? "Gruppe erstellen" : "Chat starten"}
+                {selected.length > 1 || groupName.trim()
+                  ? "Gruppe erstellen"
+                  : "Chat starten"}
               </button>
             </div>
           </div>
