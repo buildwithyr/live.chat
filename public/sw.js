@@ -1,7 +1,7 @@
 // Minimaler Service Worker fuer PWA-Installierbarkeit.
 // Bewusst ohne aggressives Caching, damit Echtzeit-Daten immer aktuell sind.
 
-const CACHE = "live-chat-v1";
+const CACHE = "live-chat-v2";
 const APP_SHELL = ["/", "/chat", "/login", "/manifest.json", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -39,5 +39,43 @@ self.addEventListener("fetch", (event) => {
         return response;
       })
       .catch(() => caches.match(request))
+  );
+});
+
+// ---- Web Push ----
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: "live.chat", body: event.data ? event.data.text() : "" };
+  }
+  const title = data.title || "live.chat";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || "",
+      icon: "/icon.svg",
+      badge: "/icon.svg",
+      tag: data.url || "live-chat",
+      data: { url: data.url || "/chat" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = event.notification.data?.url || "/chat";
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((list) => {
+        for (const client of list) {
+          if ("focus" in client) {
+            client.navigate(target);
+            return client.focus();
+          }
+        }
+        return self.clients.openWindow(target);
+      })
   );
 });
